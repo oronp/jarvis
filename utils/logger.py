@@ -1,6 +1,7 @@
 # TODO: add the option to add params to logs.
 import logging
 import sys
+
 from utils.color_formatter import ColorFormatter
 
 
@@ -38,5 +39,3 @@ if __name__ == '__main__':
     logger = JarvisLogger(logger_name="test")
     logger.info("hello world")
     logger.error("this is an error")
-
-

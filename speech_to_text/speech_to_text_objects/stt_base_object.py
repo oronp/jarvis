@@ -9,4 +9,3 @@ class STTObject(BaseModel):
     # duration: float = Field(..., description="The duration of the STT object")
     language: str = Field(..., description="The language of the STT object")
     # speaker: str = Field(default="No Speaker", description="The speaker of the STT object")
-

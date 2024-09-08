@@ -1,7 +1,10 @@
+import logging
+
 import speech_recognition as sr
 from pydantic import Field, ConfigDict
+
 from speech_to_text.speech_to_text_objects.stt_base_object import STTObject
-import logging
+
 logger = logging.getLogger("SR Object")
 
 
@@ -46,4 +49,3 @@ class SRObject(STTObject):
             except Exception as e:
                 logger.error(f"An error occurred: {e}")
                 return None
-
