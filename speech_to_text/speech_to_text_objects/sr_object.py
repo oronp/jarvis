@@ -22,13 +22,12 @@ class SRObject(STTObject):
     vosk_model_path: str = Field(default=os.path.join('models', 'vosk-model-small-en-us-0.15'),
                                  description="The path to the VOSK model")
     sound_sample_rate: int = Field(default=16000, description="The sound sample rate")
-    language: str = Field(default="en-US", description="The language for speech recognition")
     q: queue.Queue = Field(default_factory=queue.Queue, description="The queue for audio data")
 
     vosk_model: Model = Field(default=None, init=False)
 
     def __init__(self, **kwargs):
-        super().__init__()
+        super().__init__(**kwargs)
         self.vosk_model = Model(self.vosk_model_path)
 
     def queue_callback(self, indata, frames, time, status):
