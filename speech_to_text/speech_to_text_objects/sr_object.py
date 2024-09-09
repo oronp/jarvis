@@ -26,7 +26,7 @@ class SRObject(STTObject):
     #     except (FileNotFoundError, json.JSONDecodeError):
     #         return {}
 
-    def recognize_speech_from_microphone(self):
+    def recognize_speech_with_google_api(self):
         with sr.Microphone() as source:
             logger.info("Adjusting for ambient noise, please wait...")
 
