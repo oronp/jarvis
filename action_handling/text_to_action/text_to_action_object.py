@@ -1,8 +1,6 @@
 import os
 from openai import OpenAI
 
-os.environ['OPENAI_API_KEY'] = "sk-X-NhJUCincTkq8IogBYmGOzZJrHHE4P3LY2U77DRWtT3BlbkFJHLc6gfVoH4UFyARKMdUOHEjWoDEfz1GsKdAkQCwaUA"
-
 openai_client = OpenAI()
 
 # Define possible actions/intents that the assistant can recognize
@@ -72,17 +70,3 @@ def handle_intent(intent, user_input):
         return "The current time is being fetched."
     else:
         return "Sorry, I couldn't understand the request."
-
-
-if __name__ == "__main__":
-    # Example usage
-    user_input = "Can you remind me to buy milk tomorrow?"
-
-    # Detect the user's intent
-    detected_intent = detect_intent(user_input)
-    print(f"Detected Intent: {detected_intent}")
-
-    # Handle the intent and respond accordingly
-    assistant_response = handle_intent(detected_intent, user_input)
-    print(f"Assistant: {assistant_response}")
-
