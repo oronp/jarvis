@@ -1,4 +1,4 @@
-ort json
+import json
 import os
 import queue
 
@@ -9,6 +9,7 @@ from vosk import Model, KaldiRecognizer
 
 from speech_to_text.speech_to_text_objects.stt_base_object import STTObject
 from utils.logger import JarvisLogger
+from config.base_config import BaseConfig
 
 logger = JarvisLogger("SR_Object")
 
@@ -17,7 +18,7 @@ class SRObject(STTObject):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     recognizer: sr.Recognizer = Field(default_factory=sr.Recognizer, description="The recognizer object")
-    credentials_json: dict = Field(default=os.path.join('config', 'jarvis-435015-e56d7f72b57b.json'),
+    credentials_json: dict = Field(default=BaseConfig.google_credentials_json_path,
                                    description="The credentials JSON for Google Cloud Speech-to-Text API")
     vosk_model_path: str = Field(default=os.path.join('models', 'vosk-model-small-en-us-0.15'),
                                  description="The path to the VOSK model")
