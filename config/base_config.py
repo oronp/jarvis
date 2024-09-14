@@ -1,33 +1,40 @@
 import json
 import os
-
+import pytz
+from dataclasses import dataclass, field
 from utils.logger import JarvisLogger
 
 logger = JarvisLogger("BaseConfig")
 
 
+@dataclass(frozen=True)
 class BaseConfig:
     google_json_name: str = "jarvis-435015-e56d7f72b57b.json"
     openai_json_name: str = "open_ai.json"
+    oauth_json_name: str = "oauth_credentials.json"
+    oauth_token_json_name: str = "oauth_token.json"
 
-    google_credentials_json_path: dict
-    openai_credentials_json_path: dict
+    gcp_scopes = ['https://www.googleapis.com/auth/calendar']  # GCP
+    local_timezone = pytz.timezone('Asia/Jerusalem')  # Adjust to your location
 
-    def __init__(self):
-        self.set_credentials_json_path()
-        self.set_credentials_json_path()
+    google_credentials_json_path: str = field(init=False)
+    openai_credentials_json_path: str = field(init=False)
+    oauth_credentials_json_path: str = field(init=False)
+    oauth_token_json_path: str = field(init=False)
 
-    @classmethod
-    def set_credentials_json_path(cls):
+    def __post_init__(self):
         config_dir = os.path.dirname(os.path.abspath(__file__))
-        cls.google_credentials_json_path = os.path.join(config_dir, cls.google_json_name)
-        cls.openai_credentials_json_path = os.path.join(config_dir, cls.openai_json_name)
+        object.__setattr__(self, 'google_credentials_json_path', os.path.join(config_dir, self.google_json_name))
+        object.__setattr__(self, 'openai_credentials_json_path', os.path.join(config_dir, self.openai_json_name))
+        object.__setattr__(self, 'oauth_credentials_json_path', os.path.join(config_dir, self.oauth_json_name))
+        object.__setattr__(self, 'oauth_token_json_path', os.path.join(config_dir, self.oauth_token_json_name))
 
-    @classmethod
-    def get_google_credentials_json_as_dict(cls):
+    def get_google_credentials_json_as_dict(self) -> dict:
         try:
-            with open(cls.google_credentials_json_path, 'r') as file:
+            with open(self.google_credentials_json_path, 'r') as file:
                 data = json.load(file)
                 return data
         except json.JSONDecodeError as e:
             logger.error("Failed to decode JSON from google_credentials_json", params=e)
+            return {}
+
