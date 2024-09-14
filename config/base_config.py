@@ -26,6 +26,8 @@ class BaseConfig:
     @classmethod
     def get_google_credentials_json_as_dict(cls):
         try:
-            return json.loads(cls.google_credentials_json_path)
+            with open(cls.google_credentials_json_path, 'r') as file:
+                data = json.load(file)
+                return data
         except json.JSONDecodeError as e:
             logger.error("Failed to decode JSON from google_credentials_json", params=e)
