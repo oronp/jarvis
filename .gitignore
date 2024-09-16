@@ -1,8 +1,10 @@
+# trash
 .venv/
+.idea/
 
 #sandboxs
-sandbox.py
+sandbox/
 
 #secrets
-secrets/
+config/secrets/
 
