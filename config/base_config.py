@@ -5,14 +5,15 @@ from dataclasses import dataclass, field
 from utils.logger import JarvisLogger
 
 logger = JarvisLogger("BaseConfig")
+SECRET_DIR = "secrets"
 
 
 @dataclass(frozen=True)
 class BaseConfig:
-    google_json_name: str = "jarvis_google_cred.json"
-    openai_json_name: str = "open_ai.json"
-    oauth_json_name: str = "oauth_credentials.json"
-    oauth_token_json_name: str = "oauth_token.json"
+    google_json_name: str = os.path.join(SECRET_DIR, "jarvis_google_cred.json")
+    openai_json_name: str = os.path.join(SECRET_DIR, "open_ai.json")
+    oauth_json_name: str = os.path.join(SECRET_DIR, "oauth_credentials.json")
+    oauth_token_json_name: str = os.path.join(SECRET_DIR, "oauth_token.json")
 
     gcp_scopes = ['https://www.googleapis.com/auth/calendar']  # GCP
     local_timezone = pytz.timezone('Asia/Jerusalem')  # Adjust to your location
