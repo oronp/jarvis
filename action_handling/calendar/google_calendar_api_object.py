@@ -1,17 +1,18 @@
 import os.path
 import pickle
-import pytz
 from datetime import datetime
 from typing import Any
+
+import pytz
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
-from config.base_config import BaseConfig
+from action_handling.calendar.google_calendar_api_config import GoogleCalendarApiConfig
 from utils.logger import JarvisLogger
 
-config = BaseConfig()
+config = GoogleCalendarApiConfig()
 
 logger = JarvisLogger("GoogleCalendarApiObject")
 
@@ -19,56 +20,89 @@ logger = JarvisLogger("GoogleCalendarApiObject")
 class GoogleCalendarApiObject(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    config_json: dict = Field(default=config.google_credentials_json_path,
+    config_json: dict = Field(default=config.GOOGLE_CREDENTIALS_JSON_PATH,
                               description="Credentials for calendar API")
 
     service: Any = Field(default=None, description="Google Calendar API service")
-    max_results: int = Field(default=10, description="Maximum number of events to retrieve")
 
-    def authenticate_google_calendar(self) -> None:
-        """Authenticate and return the Google Calendar service"""
+    @staticmethod
+    def get_local_time():
+        now_utc = datetime.utcnow().replace(tzinfo=pytz.utc)
+        now_local = now_utc.astimezone(config.LOCAL_TIMEZONE)
+        return now_local.isoformat()
+
+    @model_validator(mode='after')
+    def authenticate_google_calendar(self) -> 'GoogleCalendarApiObject':
+        """
+        Authenticate and return the Google Calendar service
+        The file token.json stores the user's access and refresh tokens, and is created automatically when the
+        authorization flow completes for the first time.
+        """
         creds = None
-        # The file token.json stores the user's access and refresh tokens, and is
-        # created automatically when the authorization flow completes for the first time.
-        if os.path.exists(config.oauth_token_json_path):
-            with open(config.oauth_token_json_path, 'rb') as token:
+        if os.path.exists(config.OAUTH_TOKEN_JSON_PATH):
+            with open(config.OAUTH_TOKEN_JSON_PATH, 'rb') as token:
                 creds = pickle.load(token)
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                flow = InstalledAppFlow.from_client_secrets_file(config.oauth_credentials_json_path, config.gcp_scopes)
+                flow = InstalledAppFlow.from_client_secrets_file(config.OAUTH_CREDENTIALS_JSON_PATH, config.GCP_SCOPES)
                 creds = flow.run_local_server(port=0)
             # Save the credentials for the next run
-            with open(config.oauth_token_json_path, 'wb') as token:
+            with open(config.OAUTH_CREDENTIALS_JSON_PATH, 'wb') as token:
                 pickle.dump(creds, token)
 
         self.service = build('calendar', 'v3', credentials=creds)
 
-    def list_events(self):
+        return self
+
+    def list_events(self, number_of_events: int = 10) -> list[dict]:
         """List upcoming events on the user's calendar"""
-        now_utc = datetime.utcnow().replace(tzinfo=pytz.utc)
-        now_local = now_utc.astimezone(config.local_timezone)
-        now_iso = now_local.isoformat()
+        current_time = self.get_local_time()
 
-        logger.info('Getting the upcoming {} events'.format(self.max_results))
+        logger.info('Getting the upcoming {} events'.format(number_of_events))
 
-        events_result = self.service.events().list(calendarId='primary', timeMin=now_iso,
-                                                   maxResults=self.max_results, singleEvents=True,
+        events_result = self.service.events().list(calendarId='primary', timeMin=current_time,
+                                                   maxResults=number_of_events, singleEvents=True,
                                                    orderBy='startTime').execute()
         events = events_result.get('items', [])
 
-        if not events:
-            logger.info('No upcoming events found.')
-            return
+        return events
 
-        for event in events:
-            start = event['start'].get('dateTime', event['start'].get('date'))
-            print(start, event['summary'])
+    def create_event(self, summary: str, location: str, description: str, start_time: str, end_time: str):
+        """Create a new event on the user's primary calendar, specifying local timezone"""
+        start_time_local = config.LOCAL_TIMEZONE.localize(datetime.strptime(start_time, config.TIME_FORMAT))
+        end_time_local = config.LOCAL_TIMEZONE.localize(datetime.strptime(end_time, config.TIME_FORMAT))
+
+        event = {
+            'summary': summary,
+            'location': location,
+            'description': description,
+            'start': {
+                'dateTime': start_time_local.isoformat(),
+                'timeZone': config.LOCAL_TIMEZONE.zone,
+            },
+            'end': {
+                'dateTime': end_time_local.isoformat(),
+                'timeZone': config.LOCAL_TIMEZONE.zone,
+            },
+            'reminders': {
+                'useDefault': False,
+                'overrides': [
+                    {'method': 'email', 'minutes': 24 * 60},
+                    {'method': 'popup', 'minutes': 10},
+                ],
+            },
+        }
+
+        event = self.service.events().insert(calendarId='primary', body=event).execute()
+        logger.info(f'Event created: {event.get("htmlLink")}')
 
 
 if __name__ == '__main__':
     a = GoogleCalendarApiObject()
-    a.authenticate_google_calendar()
-    a.list_events()
+    # a.authenticate_google_calendar()
+    a.create_event(
+        "Test Event", "Home", "This is a test event", "2024-09-16T16:00:00", "2024-09-16T17:00:00"
+    )

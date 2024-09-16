@@ -10,32 +10,23 @@ SECRET_DIR = "secrets"
 
 @dataclass(frozen=True)
 class BaseConfig:
-    google_json_name: str = os.path.join(SECRET_DIR, "jarvis_google_cred.json")
-    openai_json_name: str = os.path.join(SECRET_DIR, "open_ai.json")
-    oauth_json_name: str = os.path.join(SECRET_DIR, "oauth_credentials.json")
-    oauth_token_json_name: str = os.path.join(SECRET_DIR, "oauth_token.json")
+    GOOGLE_JSON_NAME: str = os.path.join(SECRET_DIR, "jarvis_google_cred.json")
+    OPENAI_JSON_NAME: str = os.path.join(SECRET_DIR, "open_ai.json")
+    OAUTH_JSON_NAME: str = os.path.join(SECRET_DIR, "oauth_credentials.json")
+    OAUTH_TOKEN_JSON_NAME: str = os.path.join(SECRET_DIR, "oauth_token.json")
 
-    gcp_scopes = ['https://www.googleapis.com/auth/calendar']  # GCP
-    local_timezone = pytz.timezone('Asia/Jerusalem')  # Adjust to your location
+    GCP_SCOPES = ['https://www.googleapis.com/auth/calendar']  # GCP
+    LOCAL_TIMEZONE = pytz.timezone('Asia/Jerusalem')  # Adjust to your location
 
-    google_credentials_json_path: str = field(init=False)
-    openai_credentials_json_path: str = field(init=False)
-    oauth_credentials_json_path: str = field(init=False)
-    oauth_token_json_path: str = field(init=False)
+    GOOGLE_CREDENTIALS_JSON_PATH: str = field(init=False)
+    OPENAI_CREDENTIALS_JSON_PATH: str = field(init=False)
+    OAUTH_CREDENTIALS_JSON_PATH: str = field(init=False)
+    OAUTH_TOKEN_JSON_PATH: str = field(init=False)
 
     def __post_init__(self):
         config_dir = os.path.dirname(os.path.abspath(__file__))
-        object.__setattr__(self, 'google_credentials_json_path', os.path.join(config_dir, self.google_json_name))
-        object.__setattr__(self, 'openai_credentials_json_path', os.path.join(config_dir, self.openai_json_name))
-        object.__setattr__(self, 'oauth_credentials_json_path', os.path.join(config_dir, self.oauth_json_name))
-        object.__setattr__(self, 'oauth_token_json_path', os.path.join(config_dir, self.oauth_token_json_name))
-
-    def get_google_credentials_json_as_dict(self) -> dict:
-        try:
-            with open(self.google_credentials_json_path, 'r') as file:
-                data = json.load(file)
-                return data
-        except json.JSONDecodeError as e:
-            logger.error("Failed to decode JSON from google_credentials_json", params=e)
-            return {}
+        object.__setattr__(self, 'GOOGLE_CREDENTIALS_JSON_PATH', os.path.join(config_dir, self.GOOGLE_JSON_NAME))
+        object.__setattr__(self, 'OPENAI_CREDENTIALS_JSON_PATH', os.path.join(config_dir, self.OPENAI_JSON_NAME))
+        object.__setattr__(self, 'OAUTH_CREDENTIALS_JSON_PATH', os.path.join(config_dir, self.OAUTH_JSON_NAME))
+        object.__setattr__(self, 'OAUTH_TOKEN_JSON_PATH', os.path.join(config_dir, self.OAUTH_TOKEN_JSON_NAME))
 

@@ -18,7 +18,7 @@ class SRObject(STTObject):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     recognizer: sr.Recognizer = Field(default_factory=sr.Recognizer, description="The recognizer object")
-    credentials_json: dict = Field(default=BaseConfig.google_credentials_json_path,
+    credentials_json: dict = Field(default=BaseConfig.GOOGLE_CREDENTIALS_JSON_PATH,
                                    description="The credentials JSON for Google Cloud Speech-to-Text API")
     vosk_model_path: str = Field(default=os.path.join('models', 'vosk-model-small-en-us-0.15'),
                                  description="The path to the VOSK model")
