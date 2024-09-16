@@ -9,7 +9,7 @@ logger = JarvisLogger("BaseConfig")
 
 @dataclass(frozen=True)
 class BaseConfig:
-    google_json_name: str = "jarvis-435015-e56d7f72b57b.json"
+    google_json_name: str = "jarvis_google_cred.json"
     openai_json_name: str = "open_ai.json"
     oauth_json_name: str = "oauth_credentials.json"
     oauth_token_json_name: str = "oauth_token.json"
