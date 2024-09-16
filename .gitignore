@@ -1,0 +1,8 @@
+.venv/
+
+#sandboxs
+sandbox.py
+
+#secrets
+secrets/
+
