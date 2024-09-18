@@ -84,7 +84,6 @@ class SRObject(STTObject):
                     if text:
                         logger.info(f"Recognized: {text}")
                         if "hello" in text.lower():
-                            self.recognize_speech_with_google_api()
-                            break
+                            return self.recognize_speech_with_google_api()
                 else:
                     logger.info(rec.PartialResult())
