@@ -70,7 +70,7 @@ class GoogleCalendarApiObject(BaseModel):
 
         return events
 
-    def create_event(self, summary: str, location: str, description: str, start_time: str, end_time: str):
+    def create_event(self, summary: str, location: str, start_time: str, end_time: str, description: str = ''):
         """Create a new event on the user's primary calendar, specifying local timezone"""
         start_time_local = config.LOCAL_TIMEZONE.localize(datetime.strptime(start_time, config.TIME_FORMAT))
         end_time_local = config.LOCAL_TIMEZONE.localize(datetime.strptime(end_time, config.TIME_FORMAT))
@@ -98,11 +98,3 @@ class GoogleCalendarApiObject(BaseModel):
 
         event = self.service.events().insert(calendarId='primary', body=event).execute()
         logger.info(f'Event created: {event.get("htmlLink")}')
-
-
-if __name__ == '__main__':
-    a = GoogleCalendarApiObject()
-    # a.authenticate_google_calendar()
-    a.create_event(
-        "Test Event", "Home", "This is a test event", "2024-09-16T16:00:00", "2024-09-16T17:00:00"
-    )
