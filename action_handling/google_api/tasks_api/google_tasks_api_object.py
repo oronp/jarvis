@@ -23,17 +23,13 @@ class GoogleTasksApiObject(GoogleApiObject):
         """Adds a task to Google Tasks."""
         task = {
             'title': task_title,
+            'notes': task_notes,
+            'due': due_date.isoformat() + 'Z' if due_date else None  # Due date must be in RFC3339 format
         }
-        if task_notes:
-            task['notes'] = task_notes
-        if due_date:
-            task['due'] = due_date.isoformat() + 'Z'  # Due date must be in RFC3339 format
 
         result = self.service.tasks().insert(tasklist='@default', body=task).execute()
-        print(f'Task created: {result["title"]} (ID: {result["id"]})')
+        logger.info(f'Task created: {result["title"]} (ID: {result["id"]})')
 
-
-if __name__ == '__main__':
-    a = GoogleTasksApiObject()
-    a.add_task(task_title="Test", task_notes="Test notes")
-    print(1)
+    def list_tasks(self):
+        """Lists all tasks in Google Tasks."""
+        return self.service.tasks().list(tasklist='@default').execute()
