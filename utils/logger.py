@@ -33,9 +33,3 @@ class JarvisLogger:
 
     def error(self, message: str, params: dict = None):
         self.logger.error(message)
-
-
-if __name__ == '__main__':
-    logger = JarvisLogger(logger_name="test")
-    logger.info("hello world")
-    logger.error("this is an error")

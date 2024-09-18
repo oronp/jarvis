@@ -1,29 +1,27 @@
-import os.path
-import pickle
 from datetime import datetime
 from typing import Any
 
 import pytz
-from google.auth.transport.requests import Request
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from pydantic import BaseModel, Field, ConfigDict, model_validator
 
-from action_handling.calendar.google_calendar_api_config import GoogleCalendarApiConfig
+from action_handling.google_api.google_api_config import GoogleApiConfig
+from action_handling.google_api.google_api_object import GoogleApiObject
 from utils.logger import JarvisLogger
 
-config = GoogleCalendarApiConfig()
+config = GoogleApiConfig()
 
 logger = JarvisLogger("GoogleCalendarApiObject")
 
 
-class GoogleCalendarApiObject(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+class GoogleCalendarApiObject(GoogleApiObject):
+    service: Any = None
 
-    config_json: dict = Field(default=config.GOOGLE_CREDENTIALS_JSON_PATH,
-                              description="Credentials for calendar API")
-
-    service: Any = Field(default=None, description="Google Calendar API service")
+    def __init__(self) -> None:
+        """
+        The parent class authenticates the user creds.
+        """
+        super().__init__()
+        self.service = build('calendar', 'v3', credentials=self.creds)
 
     @staticmethod
     def get_local_time():
@@ -31,37 +29,11 @@ class GoogleCalendarApiObject(BaseModel):
         now_local = now_utc.astimezone(config.LOCAL_TIMEZONE)
         return now_local.isoformat()
 
-    @model_validator(mode='after')
-    def authenticate_google_calendar(self) -> 'GoogleCalendarApiObject':
-        """
-        Authenticate and return the Google Calendar service
-        The file token.json stores the user's access and refresh tokens, and is created automatically when the
-        authorization flow completes for the first time.
-        """
-        creds = None
-        if os.path.exists(config.OAUTH_TOKEN_JSON_PATH):
-            with open(config.OAUTH_TOKEN_JSON_PATH, 'rb') as token:
-                creds = pickle.load(token)
-        # If there are no (valid) credentials available, let the user log in.
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file(config.OAUTH_CREDENTIALS_JSON_PATH, config.GCP_SCOPES)
-                creds = flow.run_local_server(port=0)
-            # Save the credentials for the next run
-            with open(config.OAUTH_CREDENTIALS_JSON_PATH, 'wb') as token:
-                pickle.dump(creds, token)
-
-        self.service = build('calendar', 'v3', credentials=creds)
-
-        return self
-
     def list_events(self, number_of_events: int = 10) -> list[dict]:
         """List upcoming events on the user's calendar"""
         current_time = self.get_local_time()
 
-        logger.info('Getting the upcoming {} events'.format(number_of_events))
+        logger.info(f'Getting the upcoming {number_of_events} events')
 
         events_result = self.service.events().list(calendarId='primary', timeMin=current_time,
                                                    maxResults=number_of_events, singleEvents=True,
