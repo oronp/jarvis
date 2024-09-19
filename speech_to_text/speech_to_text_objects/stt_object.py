@@ -2,13 +2,14 @@ import json
 import os
 import queue
 
+import openai  # OpenAI Whisper library
 import sounddevice as sd
 import speech_recognition as sr
 from pydantic import BaseModel, Field, ConfigDict
 from vosk import Model, KaldiRecognizer
 
-from utils.logger import JarvisLogger
 from config.base_config import BaseConfig
+from utils.logger import JarvisLogger
 
 logger = JarvisLogger("SR_Object")
 
@@ -70,6 +71,22 @@ class SRObject(BaseModel):
                 logger.error(f"An error occurred: {e}")
                 return None
 
+    def recognize_speech_with_whisper(self, audio_file_path):
+        """Recognizes speech using OpenAI Whisper API."""
+        try:
+            logger.info("Processing audio with OpenAI Whisper...")
+            # Send the audio to Whisper for transcription
+            with open(audio_file_path, "rb") as audio_file:
+                transcript = openai.Audio.transcribe("whisper-1", audio_file)
+
+            recognized_text = transcript.get("text", "")
+            logger.info(f"Whisper recognized: {recognized_text}")
+            return recognized_text
+
+        except Exception as e:
+            logger.error(f"An error occurred with Whisper: {e}")
+            return None
+
     def passive_listener(self):
         with sd.RawInputStream(samplerate=self.sound_sample_rate, blocksize=16000, dtype='int16', channels=1,
                                callback=self.queue_callback):
@@ -85,5 +102,11 @@ class SRObject(BaseModel):
                         logger.info(f"Recognized: {text}")
                         if "hello" in text.lower():
                             return self.recognize_speech_with_google_api()
+                        if "whisper" in text.lower():
+                            # Save the audio stream to a file and send it to Whisper
+                            audio_file_path = "temp_audio.wav"
+                            with open(audio_file_path, 'wb') as f:
+                                f.write(data)
+                            return self.recognize_speech_with_whisper(audio_file_path)
                 else:
                     logger.info(rec.PartialResult())
