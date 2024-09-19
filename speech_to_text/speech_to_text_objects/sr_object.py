@@ -4,19 +4,19 @@ import queue
 
 import sounddevice as sd
 import speech_recognition as sr
-from pydantic import Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict
 from vosk import Model, KaldiRecognizer
 
-from speech_to_text.speech_to_text_objects.stt_base_object import STTObject
 from utils.logger import JarvisLogger
 from config.base_config import BaseConfig
 
 logger = JarvisLogger("SR_Object")
 
 
-class SRObject(STTObject):
+class SRObject(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
+    language: str = Field(..., description="The language of the STT object")
     recognizer: sr.Recognizer = Field(default_factory=sr.Recognizer, description="The recognizer object")
     credentials_json: dict = Field(default=BaseConfig.GOOGLE_CREDENTIALS_JSON_PATH,
                                    description="The credentials JSON for Google Cloud Speech-to-Text API")
