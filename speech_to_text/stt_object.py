@@ -2,7 +2,7 @@ import json
 import os
 import queue
 
-import openai  # OpenAI Whisper library
+import openai
 import sounddevice as sd
 import speech_recognition as sr
 from pydantic import BaseModel, Field, ConfigDict
@@ -17,7 +17,7 @@ logger = JarvisLogger("SR_Object")
 class SRObject(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    language: str = Field(..., description="The language of the STT object")
+    language: str = Field(description="The language of the STT object")
     recognizer: sr.Recognizer = Field(default_factory=sr.Recognizer, description="The recognizer object")
     credentials_json: dict = Field(default=BaseConfig.GOOGLE_CREDENTIALS_JSON_PATH,
                                    description="The credentials JSON for Google Cloud Speech-to-Text API")
@@ -71,7 +71,8 @@ class SRObject(BaseModel):
                 logger.error(f"An error occurred: {e}")
                 return None
 
-    def recognize_speech_with_whisper(self, audio_file_path):
+    @staticmethod
+    def recognize_speech_with_whisper(audio_file_path: str):
         """Recognizes speech using OpenAI Whisper API."""
         try:
             logger.info("Processing audio with OpenAI Whisper...")

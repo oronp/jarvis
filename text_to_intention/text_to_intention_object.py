@@ -1,11 +1,12 @@
 from openai import OpenAI
 from pydantic import BaseModel, Field
-from action_handling.text_to_intention.text_to_intention_config import TextToIntentionConfig
+
+from text_to_intention.text_to_intention_config import TextToIntentionConfig
 
 
 class TextToIntentionObject(BaseModel):
     openai_client: OpenAI = Field(default=OpenAI(), description="OpenAI client instance")
-    intents:  list[str] = Field(default=TextToIntentionConfig.INTENTS, description="List of possible intents")
+    intents: list[str] = Field(default=TextToIntentionConfig.INTENTS, description="List of possible intents")
 
     def detect_intent(self, user_input):
         try:
