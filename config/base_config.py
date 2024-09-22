@@ -6,8 +6,8 @@ import pytz
 
 @dataclass(frozen=True)
 class BaseConfig:
-    SECRET_DIR: str = "secrets"
-    CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
+    CONFIG_DIR: str = os.path.dirname(os.path.abspath(__file__))
+    SECRET_DIR: str = os.path.join(CONFIG_DIR, "secrets")
     GOOGLE_JSON_NAME: str = os.path.join(SECRET_DIR, "jarvis_google_cred.json")
 
     LOCAL_TIMEZONE = pytz.timezone('Asia/Jerusalem')  # Adjust to your location
