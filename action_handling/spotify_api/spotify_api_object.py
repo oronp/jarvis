@@ -25,14 +25,14 @@ class SpotifyApiObject:
         logger.info(f"Available devices: {[_device['name'] for _device in devices_dict['devices']]}")
         return devices_dict['devices']
 
-    def play_song(self, song_uri: str):
+    def play_song(self, song_uri: str) -> None:
         """Function to play a song by URI on a specific device"""
         if self.selected_device:
             self.sp.start_playback(device_id=self.selected_device, uris=[song_uri])
         else:
             self.sp.start_playback(uris=[song_uri])
 
-    def search_song(self, song_name: str):
+    def search_song(self, song_name: str) -> str:
         results = self.sp.search(q=song_name, type='track', limit=1)
         if results['tracks']['items']:
             track = results['tracks']['items'][0]
