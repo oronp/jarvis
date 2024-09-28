@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from dataclasses import dataclass, field
 
 import pytz
@@ -7,6 +8,7 @@ import pytz
 @dataclass(frozen=True)
 class BaseConfig:
     CONFIG_DIR: str = os.path.dirname(os.path.abspath(__file__))
+    BASE_DIR: str = Path(CONFIG_DIR).parent
     SECRET_DIR: str = os.path.join(CONFIG_DIR, "secrets")
     GOOGLE_JSON_NAME: str = os.path.join(SECRET_DIR, "jarvis_google_cred.json")
 

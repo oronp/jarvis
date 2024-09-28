@@ -4,7 +4,7 @@ import queue
 import tempfile
 from typing import Optional
 
-import openai
+from openai import OpenAI
 import sounddevice as sd
 import speech_recognition as sr
 from vosk import Model, KaldiRecognizer
@@ -32,6 +32,7 @@ class SpeechRecognizerObject:
         self.recognizer = sr.Recognizer()
         self.audio_queue = queue.Queue()
         self.vosk_model = self._load_vosk_model(self.config.vosk_model_path)
+        self.openai_client = OpenAI()
 
     def _load_vosk_model(self, model_path: str) -> Model:
         """
@@ -111,7 +112,7 @@ class SpeechRecognizerObject:
                 recognized_text = self.recognizer.recognize_google_cloud(
                     audio,
                     language=self.config.language,
-                    credentials_json=self.config.credentials_json
+                    credentials_json=self.config.GOOGLE_CREDENTIALS_JSON_PATH
                 )
                 self.logger.info(f"Google API recognized: {recognized_text}")
                 return recognized_text
@@ -136,13 +137,17 @@ class SpeechRecognizerObject:
         try:
             self.logger.info("Processing audio with OpenAI Whisper...")
             with open(audio_file_path, "rb") as audio_file:
-                transcript = openai.Audio.transcribe("whisper-1", audio_file)
-            recognized_text = transcript.get("text", "").strip()
+                response = self.openai_client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    language=self.config.language.split('-')[0]  # e.g., 'en-US' -> 'en'
+                )
+            recognized_text = response.text
             self.logger.info(f"Whisper recognized: {recognized_text}")
             return recognized_text if recognized_text else None
         except Exception as e:
-            self.logger.error(f"Whisper API error: {e}")
-            return None
+            self.logger.error(f"An unexpected error occurred with Whisper API: {e}")
+        return None
 
     def passive_listen(self) -> Optional[str]:
         """
