@@ -31,5 +31,8 @@ class JarvisLogger:
     def info(self, message: str, params: dict = None):
         self.logger.info(message)
 
+    def warning(self, message: str, params: dict = None):
+        self.logger.warning(message)
+
     def error(self, message: str, params: dict = None):
         self.logger.error(message)
