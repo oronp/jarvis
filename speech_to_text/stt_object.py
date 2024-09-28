@@ -1,113 +1,195 @@
 import json
 import os
 import queue
+import tempfile
+from typing import Optional
 
 import openai
 import sounddevice as sd
 import speech_recognition as sr
-from pydantic import BaseModel, Field, ConfigDict
 from vosk import Model, KaldiRecognizer
 
-from config.base_config import BaseConfig
+from speech_to_text.stt_config import SpeechRecognizerConfig
 from utils.logger import JarvisLogger
 
-logger = JarvisLogger("SR_Object")
+
+class SpeechRecognitionError(Exception):
+    """Custom exception for speech recognition errors."""
+    pass
 
 
-class SRObject(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+class SpeechRecognizerObject:
+    """
+    A class to handle speech recognition using VOSK, Google Cloud Speech-to-Text, and OpenAI Whisper.
+    """
 
-    language: str = Field(description="The language of the STT object")
-    recognizer: sr.Recognizer = Field(default_factory=sr.Recognizer, description="The recognizer object")
-    credentials_json: dict = Field(default=BaseConfig.GOOGLE_CREDENTIALS_JSON_PATH,
-                                   description="The credentials JSON for Google Cloud Speech-to-Text API")
-    vosk_model_path: str = Field(default=os.path.join('models', 'vosk-model-small-en-us-0.15'),
-                                 description="The path to the VOSK model")
-    sound_sample_rate: int = Field(default=16000, description="The sound sample rate")
-    q: queue.Queue = Field(default_factory=queue.Queue, description="The queue for audio data")
+    def __init__(self) -> None:
+        """
+        Initializes the SpeechRecognizer with the given configuration and logger.
+        """
+        self.config = SpeechRecognizerConfig
+        self.logger = JarvisLogger("SpeechRecognizer")
+        self.recognizer = sr.Recognizer()
+        self.audio_queue = queue.Queue()
+        self.vosk_model = self._load_vosk_model(self.config.vosk_model_path)
 
-    vosk_model: Model = Field(default=None, init=False)
+    def _load_vosk_model(self, model_path: str) -> Model:
+        """
+        Loads the VOSK model from the specified path.
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.vosk_model = Model(self.vosk_model_path)
+        Args:
+            model_path (str): Path to the VOSK model.
 
-    def queue_callback(self, indata, frames, time, status):
-        if status:
-            logger.info(status)
-        self.q.put(bytes(indata))
+        Returns:
+            Model: Loaded VOSK model.
 
-    def recognize_speech_with_google_api(self):
-        with sr.Microphone() as source:
-            logger.info("Adjusting for ambient noise, please wait...")
-
-            # Optional: Adjust the recognizer sensitivity to ambient noise (best practice in noisy environments)
-            self.recognizer.adjust_for_ambient_noise(source=source)
-
-            logger.info("Ready to listen, please speak.")
-
-            try:
-                # Capture the audio from the microphone
-                audio = self.recognizer.listen(source, timeout=5, phrase_time_limit=10)
-
-                # Use Google's Speech Recognition to convert audio to text
-                logger.info("Processing...")
-                recognized_text = self.recognizer.recognize_google_cloud(audio, language=self.language,
-                                                                         credentials_json=self.credentials_json)
-
-                logger.info(f"You said: {recognized_text}")
-                return recognized_text
-
-            except sr.UnknownValueError:
-                logger.error("Sorry, I could not understand the audio.")
-                return None
-            except sr.RequestError as e:
-                logger.error(f"Could not request results; {e}")
-                return None
-            except sr.WaitTimeoutError:
-                logger.error("Listening timed out while waiting for phrase to start.")
-                return None
-            except Exception as e:
-                logger.error(f"An error occurred: {e}")
-                return None
-
-    @staticmethod
-    def recognize_speech_with_whisper(audio_file_path: str):
-        """Recognizes speech using OpenAI Whisper API."""
+        Raises:
+            SpeechRecognitionError: If the model fails to load.
+        """
         try:
-            logger.info("Processing audio with OpenAI Whisper...")
-            # Send the audio to Whisper for transcription
+            self.logger.info(f"Loading VOSK model from {model_path}...")
+            model = Model(model_path)
+            self.logger.info("VOSK model loaded successfully.")
+            return model
+        except Exception as e:
+            self.logger.error(f"Failed to load VOSK model: {e}")
+            raise SpeechRecognitionError(f"Failed to load VOSK model: {e}") from e
+
+    def _queue_callback(self, indata: bytes, frames: int, time_info, status) -> None:
+        """
+        Callback function for the audio stream to enqueue audio data.
+
+        Args:
+            indata (bytes): Input audio data.
+            frames (int): Number of frames.
+            time_info: Time information.
+            status: Status flags.
+        """
+        if status:
+            self.logger.error(f"Stream status: {status}")
+        self.audio_queue.put(bytes(indata))
+
+    def record_audio(self) -> str:
+        """
+        Records audio from the microphone for a specified duration and saves it to a temporary WAV file.
+
+        Returns:
+            str: Path to the recorded audio file.
+
+        Raises:
+            SpeechRecognitionError: If recording fails.
+        """
+        try:
+            self.logger.info(f"Recording audio for {self.config.record_duration} seconds...")
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio_file:
+                with sr.Microphone(sample_rate=self.config.sound_sample_rate) as source:
+                    self.recognizer.adjust_for_ambient_noise(source)
+                    audio = self.recognizer.record(source, duration=self.config.record_duration)
+                    # Save the recorded audio to the temporary file
+                    with open(temp_audio_file.name, "wb") as f:
+                        f.write(audio.get_wav_data())
+                self.logger.info(f"Audio recorded and saved to {temp_audio_file.name}.")
+                return temp_audio_file.name
+        except Exception as e:
+            self.logger.error(f"Failed to record audio: {e}")
+            raise SpeechRecognitionError(f"Failed to record audio: {e}") from e
+
+    def recognize_with_google_api(self, audio_file_path: str) -> Optional[str]:
+        """
+        Recognizes speech using Google Cloud Speech-to-Text API.
+
+        Args:
+            audio_file_path (str): Path to the audio file.
+
+        Returns:
+            Optional[str]: Recognized text or None if recognition fails.
+        """
+        try:
+            with sr.AudioFile(audio_file_path) as source:
+                self.logger.info("Processing audio with Google Cloud Speech-to-Text...")
+                audio = self.recognizer.record(source)
+                recognized_text = self.recognizer.recognize_google_cloud(
+                    audio,
+                    language=self.config.language,
+                    credentials_json=self.config.credentials_json
+                )
+                self.logger.info(f"Google API recognized: {recognized_text}")
+                return recognized_text
+        except sr.UnknownValueError:
+            self.logger.error("Google API could not understand the audio.")
+        except sr.RequestError as e:
+            self.logger.error(f"Google API request failed: {e}")
+        except Exception as e:
+            self.logger.error(f"An unexpected error occurred with Google API: {e}")
+        return None
+
+    def recognize_with_whisper(self, audio_file_path: str) -> Optional[str]:
+        """
+        Recognizes speech using OpenAI Whisper API.
+
+        Args:
+            audio_file_path (str): Path to the audio file.
+
+        Returns:
+            Optional[str]: Recognized text or None if recognition fails.
+        """
+        try:
+            self.logger.info("Processing audio with OpenAI Whisper...")
             with open(audio_file_path, "rb") as audio_file:
                 transcript = openai.Audio.transcribe("whisper-1", audio_file)
-
-            recognized_text = transcript.get("text", "")
-            logger.info(f"Whisper recognized: {recognized_text}")
-            return recognized_text
-
+            recognized_text = transcript.get("text", "").strip()
+            self.logger.info(f"Whisper recognized: {recognized_text}")
+            return recognized_text if recognized_text else None
         except Exception as e:
-            logger.error(f"An error occurred with Whisper: {e}")
+            self.logger.error(f"Whisper API error: {e}")
             return None
 
-    def passive_listener(self):
-        with sd.RawInputStream(samplerate=self.sound_sample_rate, blocksize=16000, dtype='int16', channels=1,
-                               callback=self.queue_callback):
-            logger.info("Listening... Press Ctrl+C to stop.")
-            rec = KaldiRecognizer(self.vosk_model, self.sound_sample_rate)
+    def passive_listen(self) -> Optional[str]:
+        """
+        Listens passively for specific keywords and triggers corresponding recognition methods.
 
-            while True:
-                data = self.q.get()
-                if rec.AcceptWaveform(data):
-                    result = rec.Result()
-                    text = json.loads(result)["text"]
-                    if text:
-                        logger.info(f"Recognized: {text}")
-                        if "hello" in text.lower():
-                            return self.recognize_speech_with_google_api()
-                        if "whisper" in text.lower():
-                            # Save the audio stream to a file and send it to Whisper
-                            audio_file_path = "temp_audio.wav"
-                            with open(audio_file_path, 'wb') as f:
-                                f.write(data)
-                            return self.recognize_speech_with_whisper(audio_file_path)
-                else:
-                    logger.info(rec.PartialResult())
+        Returns:
+            Optional[str]: Recognized text based on keyword detection or None.
+        """
+        try:
+            with sd.RawInputStream(
+                samplerate=self.config.sound_sample_rate,
+                blocksize=self.config.block_size,
+                dtype='int16',
+                channels=1,
+                callback=self._queue_callback
+            ):
+                self.logger.info("Passive listening started. Press Ctrl+C to stop.")
+                recognizer = KaldiRecognizer(self.vosk_model, self.config.sound_sample_rate)
+
+                while True:
+                    data = self.audio_queue.get()
+                    if recognizer.AcceptWaveform(data):
+                        result = recognizer.Result()
+                        text = json.loads(result).get("text", "").strip()
+                        if text:
+                            self.logger.info(f"VOSK recognized: {text}")
+                            lowered_text = text.lower()
+                            if "hello" in lowered_text:
+                                # Record audio and use Google API
+                                audio_file = self.record_audio()
+                                recognized_text = self.recognize_with_google_api(audio_file)
+                                # Clean up the temporary file
+                                os.remove(audio_file)
+                                return recognized_text
+                            elif "whisper" in lowered_text:
+                                # Record audio and use Whisper
+                                audio_file = self.record_audio()
+                                recognized_text = self.recognize_with_whisper(audio_file)
+                                # Clean up the temporary file
+                                os.remove(audio_file)
+                                return recognized_text
+                    else:
+                        partial_result = recognizer.PartialResult()
+                        self.logger.info(f"Partial Result: {partial_result}")
+        except KeyboardInterrupt:
+            self.logger.info("Passive listening stopped by user.")
+        except Exception as e:
+            self.logger.error(f"An error occurred during passive listening: {e}")
+            raise SpeechRecognitionError(f"Passive listening error: {e}") from e
+        return None
