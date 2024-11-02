@@ -16,6 +16,11 @@ class TTSObject:
         self.model = config.Model.TTS_1.value
         self.voice = voice
 
+    def talk(self, text_to_speak: str):
+        speech_object = self.text_to_speech_object(text_to_speak)
+        self.speech_object_to_file(speech_object)
+        self.play_mp3_file()
+
     def text_to_speech_object(self, text_input: str):
         response = self.client.audio.speech.create(
             model=self.model,

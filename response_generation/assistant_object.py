@@ -1,7 +1,8 @@
 from openai import OpenAI
 from utils.logger import JarvisLogger
 from speech_to_text.stt_object import SpeechRecognizerObject
-
+from chat_manager.chat_manager_object import ChatManager
+from text_to_speech.tts_object import TTSObject
 
 logger = JarvisLogger('assistant')
 
@@ -11,29 +12,17 @@ class AssistantObject:
 
     def __init__(self):
         self.stt_object = SpeechRecognizerObject()
+        self.tts_object = TTSObject()
 
     def conversation(self):
-        messages = []
+        chat_manager = ChatManager()
         while True:
             try:
                 audio = self.stt_object.record_audio()
-                response = self.stt_object.recognize_with_whisper(audio)
-                logger.info("You said:", response)
+                user_input = self.stt_object.recognize_with_whisper(audio)
+                ai_response = chat_manager.chat_with_ai(user_input)
+                self.tts_object.talk(ai_response)
 
-            #     if user_input.lower() in ["exit", "quit", "bye"]:
-            #         print("Assistant: Goodbye!")
-            #         speak_text("Goodbye!")
-            #         break
-            #
-            #     response, messages = generate_response(user_input, messages)
-            #     print("Assistant:", response)
-            #     speak_text(response)
-            #
             except Exception as e:
-                print("Error:", str(e))
-                # speak_text("Sorry, I didn't catch that.")
+                logger.error("Error:", str(e))
 
-
-if __name__ == '__main__':
-    assistant = AssistantObject()
-    assistant.conversation()
